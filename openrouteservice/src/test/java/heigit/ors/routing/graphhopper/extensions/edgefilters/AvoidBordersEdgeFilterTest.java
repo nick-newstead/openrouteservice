@@ -45,9 +45,9 @@ public class AvoidBordersEdgeFilterTest {
 
         // (edgeId, borderType, startCountry, endCountry)
 
-        _graphStorage.setEdgeValue(1, BordersGraphStorage.CONTROLLED_BORDER, (short)1, (short)2);
-        _graphStorage.setEdgeValue(2, BordersGraphStorage.OPEN_BORDER, (short)3, (short)4);
-        _graphStorage.setEdgeValue(3, BordersGraphStorage.NO_BORDER, (short)5, (short)5);
+        _graphStorage.setEdgeValue(1, BordersGraphStorage.CONTROLLED_BORDER, (short)1, (short)2,  (short) 0 , (short) 0);
+        _graphStorage.setEdgeValue(2, BordersGraphStorage.OPEN_BORDER, (short)3, (short)4,  (short) 0 , (short) 0);
+        _graphStorage.setEdgeValue(3, BordersGraphStorage.NO_BORDER, (short)5, (short)5,  (short) 0 , (short) 0);
 
         _searchParams = new RouteSearchParameters();
 

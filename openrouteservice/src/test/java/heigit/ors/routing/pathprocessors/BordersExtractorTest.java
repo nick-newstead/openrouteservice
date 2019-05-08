@@ -38,9 +38,9 @@ public class BordersExtractorTest {
 
         // (edgeId, borderType, startCountry, endCountry)
 
-        _graphstorage.setEdgeValue(1, BordersGraphStorage.CONTROLLED_BORDER, (short)1, (short)2);
-        _graphstorage.setEdgeValue(2, BordersGraphStorage.OPEN_BORDER, (short)3, (short)4);
-        _graphstorage.setEdgeValue(3, BordersGraphStorage.NO_BORDER, (short)5, (short)5);
+        _graphstorage.setEdgeValue(1, BordersGraphStorage.CONTROLLED_BORDER, (short)1, (short)2,  (short) 0 , (short) 0);
+        _graphstorage.setEdgeValue(2, BordersGraphStorage.OPEN_BORDER, (short)3, (short)4,  (short) 0 , (short) 0);
+        _graphstorage.setEdgeValue(3, BordersGraphStorage.NO_BORDER, (short)5, (short)5,  (short) 0 , (short) 0);
     }
 
     private VirtualEdgeIteratorState generateEdge(int id) {

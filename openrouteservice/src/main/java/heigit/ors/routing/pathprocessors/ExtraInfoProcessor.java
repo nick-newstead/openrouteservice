@@ -29,10 +29,13 @@ import heigit.ors.routing.util.ElevationSmoother;
 import heigit.ors.routing.util.extrainfobuilders.RouteExtraInfoBuilder;
 import heigit.ors.routing.util.extrainfobuilders.SimpleRouteExtraInfoBuilder;
 import heigit.ors.routing.util.extrainfobuilders.SteepnessExtraInfoBuilder;
+import org.apache.log4j.Logger;
 
 import java.util.*;
 
 public class ExtraInfoProcessor extends PathProcessor {
+	private static final Logger LOGGER = Logger.getLogger(BordersGraphStorage.class.getName());
+
 	private WaySurfaceTypeGraphStorage _extWaySurface;
 	private WayCategoryGraphStorage _extWayCategory;
 	private GreenIndexGraphStorage _extGreenIndex;
@@ -42,7 +45,8 @@ public class ExtraInfoProcessor extends PathProcessor {
 	private HillIndexGraphStorage _extHillIndex;
 	private OsmIdGraphStorage _extOsmId;
 	private RoadAccessRestrictionsGraphStorage _extRoadAccessRestrictions;
-	
+	private BordersGraphStorage _extCountryTraversalInfo;
+
 	private RouteExtraInfo _surfaceInfo;
 	private RouteExtraInfoBuilder _surfaceInfoBuilder;
 
@@ -79,6 +83,9 @@ public class ExtraInfoProcessor extends PathProcessor {
 
 	private RouteExtraInfo _roadAccessRestrictionsInfo;
 	private RouteExtraInfoBuilder _roadAccessRestrictionsBuilder;
+
+	private RouteExtraInfo _countryTraversalInfo;
+	private RouteExtraInfoBuilder _countryTraversalBuilder;
 
 	private List<Integer> warningExtensions;
 
@@ -204,7 +211,14 @@ public class ExtraInfoProcessor extends PathProcessor {
 			_roadAccessRestrictionsInfo = new RouteExtraInfo("roadaccessrestrictions", _extRoadAccessRestrictions);
 			_roadAccessRestrictionsBuilder = new SimpleRouteExtraInfoBuilder(_roadAccessRestrictionsInfo);
 		}
-
+		boolean yes = true;
+		if (yes) {
+			_extCountryTraversalInfo = GraphStorageUtils.getGraphExtension(graphHopper.getGraphHopperStorage(), BordersGraphStorage.class);
+			if(_extCountryTraversalInfo == null)
+				throw new Exception("BordersGraphStorage is not found");
+			_countryTraversalInfo = new RouteExtraInfo("countryinfo", _extCountryTraversalInfo);
+			_countryTraversalBuilder = new SimpleRouteExtraInfoBuilder(_countryTraversalInfo);
+		}
 		buffer = new byte[4];
 	}
 
@@ -276,13 +290,40 @@ public class ExtraInfoProcessor extends PathProcessor {
 			extras.add(_osmIdInfo);
 		if (_roadAccessRestrictionsInfo != null)
 			extras.add(_roadAccessRestrictionsInfo);
+		if (_countryTraversalInfo != null)
+			extras.add(_countryTraversalInfo);
 		return extras;
 	}
 
 	@Override
 	public void processEdge(EdgeIteratorState edge, boolean isLastEdge, PointList geom) {
 		double dist = edge.getDistance();
+		short country1;
+		short country2;
 
+		// TODO Add extra info for crossed countries
+		if (_extCountryTraversalInfo != null){
+			country1 = _extCountryTraversalInfo.getEdgeValue(EdgeIteratorStateHelper.getOriginalEdge(edge), BordersGraphStorage.Property.COUNTRY1);
+			country2 = _extCountryTraversalInfo.getEdgeValue(EdgeIteratorStateHelper.getOriginalEdge(edge), BordersGraphStorage.Property.COUNTRY2);
+			if (country1 != 0)
+				LOGGER.info("country1: " + country1);
+			else
+				LOGGER.info("");
+
+			if (country2 != 0)
+				LOGGER.info("country2: " + country2);
+			else
+				LOGGER.info("");
+			if (_countryTraversalBuilder != null && country2 == 0) {
+				_countryTraversalBuilder.addSegment(country1, country1, geom, dist, isLastEdge && _lastSegment);
+			}
+			if (_countryTraversalBuilder != null && country2 != 0) {
+				int integer = Integer.parseInt(country1 + String.valueOf(0) + country2);
+				_countryTraversalBuilder.addSegment(integer, integer, geom, dist, isLastEdge && _lastSegment);
+
+			}
+
+		}
 		if (_extWaySurface != null && _wayTypeInfo != null || _surfaceInfo != null)
 		{
 			WaySurfaceDescription wsd = _extWaySurface.getEdgeValue(EdgeIteratorStateHelper.getOriginalEdge(edge), buffer);

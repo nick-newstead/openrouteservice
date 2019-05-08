@@ -20,7 +20,6 @@ import com.graphhopper.util.EdgeIteratorState;
 import com.vividsolutions.jts.geom.Coordinate;
 import com.vividsolutions.jts.geom.GeometryFactory;
 import com.vividsolutions.jts.geom.LineString;
-import com.vividsolutions.jts.geom.Point;
 import heigit.ors.exceptions.MissingConfigParameterException;
 import heigit.ors.routing.graphhopper.extensions.reader.borders.CountryBordersPolygon;
 import heigit.ors.routing.graphhopper.extensions.reader.borders.CountryBordersReader;
@@ -126,6 +125,10 @@ public class BordersGraphStorageBuilder extends AbstractGraphStorageBuilder {
             if (countries.length > 1 && !countries[0].equals(countries[1])) {
                 way.setTag("country1", countries[0]);
                 way.setTag("country2", countries[1]);
+            } else if (countries.length == 1 && !countries[0].isEmpty()) {
+                way.setTag("country1", countries[0]);
+            } else if (countries.length == 1 && countries[0].isEmpty()){
+                way.setTag("country2", countries[1]);
             }
         }
     }
@@ -139,35 +142,46 @@ public class BordersGraphStorageBuilder extends AbstractGraphStorageBuilder {
      * @param way  The OSM way obtained from the OSM reader. This way corresponds to the edge to be processed
      * @param edge The graph edge to be process
      */
-    @Override
-    public void processEdge(ReaderWay way, EdgeIteratorState edge) {
-        // Make sure we actually have the storage initialised - if there were errors accessing the data then this could be the case
-        if(_storage != null) {
-            // If there is no border crossing then we set the edge value to be 0
+     @Override
+     public void processEdge(ReaderWay way, EdgeIteratorState edge) {
+         // Make sure we actually have the storage initialised - if there were errors accessing the data then this could be the case
+         if (_storage != null) {
+             // If there is no border crossing then we set the edge value to be 0
 
-            // First get the start and end countries - if either of these is empty, then there is no crossing
-            if (way.hasTag("country1") && way.hasTag("country2")) {
-                String startVal = way.getTag("country1");
-                String endVal = way.getTag("country2");
+             // First get the start and end countries - if either of these is empty, then there is no crossing
+             short country1 = 0;
+             short country2 = 0;
+             if (way.hasTag("country1") && way.hasTag("country2")) {
+                 String startVal = way.getTag("country1");
+                 String endVal = way.getTag("country2");
+                 // Lookup values
+                 short start = 0;
+                 short end = 0;
+                 try {
+                     start = Short.parseShort(cbReader.getId(startVal));
+                     end = Short.parseShort(cbReader.getId(endVal));
+                     country1 = Short.parseShort(cbReader.getId(startVal));
+                     country2 = Short.parseShort(cbReader.getId(endVal));
+                 } catch (NumberFormatException nfe) {
+                     LOGGER.error("Error in lookup for ids " + startVal + " and " + endVal);
+                 }
+                 // Todo add add three extra bits to the edge value relating the country
+                 short type = (cbReader.isOpen(cbReader.getEngName(startVal), cbReader.getEngName(endVal))) ? (short) 2 : (short) 1;
 
-                // Lookup values
-                short start = 0, end = 0;
-
-                try {
-                    start = Short.parseShort(cbReader.getId(startVal));
-                    end = Short.parseShort(cbReader.getId(endVal));
-                } catch (NumberFormatException nfe) {
-                    LOGGER.error("Error in lookup for ids " + startVal + " and " + endVal);
-                }
-
-                short type = (cbReader.isOpen(cbReader.getEngName(startVal), cbReader.getEngName(endVal))) ? (short) 2 : (short) 1;
-
-                _storage.setEdgeValue(edge.getEdge(), type, start, end);
-            } else {
-                _storage.setEdgeValue(edge.getEdge(), (short) 0, (short) 0, (short) 0);
-            }
-        }
-    }
+                 _storage.setEdgeValue(edge.getEdge(), type, start, end, country1, country2);
+             } else if (way.hasTag("country1")) {
+                 String startVal = way.getTag("country1");
+                 try {
+                     country1 = Short.parseShort(cbReader.getId(startVal));
+                 } catch (NumberFormatException nfe) {
+                     LOGGER.error("Error in lookup for ids " + startVal);
+                 }
+                 _storage.setEdgeValue(edge.getEdge(), (short) 0, (short) 0, (short) 0, country1, country2);
+             } else {
+                 _storage.setEdgeValue(edge.getEdge(), (short) 0, (short) 0, (short) 0, country1, country2);
+             }
+         }
+     }
 
     /**
      * Method identifying the name of the extension which is used in various building processes
@@ -257,6 +271,9 @@ public class BordersGraphStorageBuilder extends AbstractGraphStorageBuilder {
             // Replace the arraylist
             countries = temp;
         }
+//        if (countries.size() > 2){
+//            countries = countries;
+//        }
         // Now we have a list of all the countries that the nodes are in - if this is more than one it is likely it is
         // crossing a border, but not certain as in some disputed areas, countries overlap and so it may not cross any
         // border.
